@@ -4,7 +4,7 @@ from PIL import Image
 import io
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": ["https://testing-flask-js-vanila.vercel.app"]}})
+CORS(app)
 
 @app.route('/', methods=['GET'])
 def home():
