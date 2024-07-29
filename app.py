@@ -6,6 +6,10 @@ import io
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({'message': 'Server is running!'}), 200
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'message': 'Backend is running!'}), 200
