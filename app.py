@@ -23,14 +23,14 @@ METADATA_FILE = "image_metadata.json"
 def get_metadata():
     try:
         metadata_content = supabase.storage.from_(BUCKET_NAME).download(METADATA_FILE)
-        return json.loads(metadata_content)
+        return json.loads(metadata_content.decode('utf-8'))
     except:
         return {}
 
 def save_metadata(metadata):
     supabase.storage.from_(BUCKET_NAME).upload(
         METADATA_FILE,
-        json.dumps(metadata),
+        json.dumps(metadata).encode('utf-8'),
         {"upsert": True}
     )
 
@@ -52,7 +52,7 @@ def upload_image():
             path = f"images/{filename}"
             
             response = supabase.storage.from_(BUCKET_NAME).upload(path, image_bytes)
-            if response.status_code != 200:
+            if hasattr(response, 'status_code') and response.status_code != 200:
                 return jsonify({'error': response.json().get('message', 'Unknown error')}), 500
             
             public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
@@ -61,7 +61,8 @@ def upload_image():
             metadata[filename] = {
                 'width': width,
                 'height': height,
-                'url': public_url
+                'url': public_url,
+                'filename': filename
             }
             save_metadata(metadata)
             
@@ -94,7 +95,7 @@ def remove_image():
 def get_images():
     try:
         metadata = get_metadata()
-        images = [{'filename': filename, **info} for filename, info in metadata.items()]
+        images = list(metadata.values())
         return jsonify(images), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
