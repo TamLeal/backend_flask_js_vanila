@@ -7,10 +7,10 @@ from supabase import create_client, Client
 app = Flask(__name__)
 CORS(app)
 
-# Configuração do Supabase
-SUPABASE_URL = "SUA_SUPABASE_URL"  # Substitua pela sua URL do Supabase
-SUPABASE_KEY = "SUA_SUPABASE_CHAVE_API"  # Substitua pela sua chave API do Supabase
-BUCKET_NAME = "nome_do_seu_bucket"  # Substitua pelo nome do seu bucket no Supabase
+# # Configuração do Supabase
+# SUPABASE_URL = "SUA_SUPABASE_URL"  # Substitua pela sua URL do Supabase
+# SUPABASE_KEY = "SUA_SUPABASE_CHAVE_API"  # Substitua pela sua chave API do Supabase
+# BUCKET_NAME = "nome_do_seu_bucket"  # Substitua pelo nome do seu bucket no Supabase
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
