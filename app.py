@@ -49,12 +49,12 @@ def upload_image():
             path = f"images/{filename}"
 
             # Upload para o Supabase
-            response = supabase.storage().from_(BUCKET_NAME).upload(path, image_bytes)
-            if response.get('error'):
-                return jsonify({'error': response['error']['message']}), 500
+            response = supabase.storage.from_(BUCKET_NAME).upload(path, image_bytes)
+            if 'error' in response:
+                return jsonify({'error': response['error']}), 500
 
-            # Obtém a URL pública ou assinada
-            public_url = supabase.storage().from_(BUCKET_NAME).get_public_url(path)
+            # Obtém a URL pública
+            public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
 
             return jsonify({'width': width, 'height': height, 'url': public_url}), 200
         except Exception as e:
