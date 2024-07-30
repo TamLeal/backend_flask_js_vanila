@@ -4,6 +4,7 @@ from PIL import Image
 import io
 from supabase import create_client, Client
 import os
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -16,6 +17,22 @@ if not SUPABASE_URL or not SUPABASE_KEY or not BUCKET_NAME:
     raise ValueError("Variáveis de ambiente não configuradas corretamente.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+METADATA_FILE = "image_metadata.json"
+
+def get_metadata():
+    try:
+        metadata_content = supabase.storage.from_(BUCKET_NAME).download(METADATA_FILE)
+        return json.loads(metadata_content)
+    except:
+        return {}
+
+def save_metadata(metadata):
+    supabase.storage.from_(BUCKET_NAME).upload(
+        METADATA_FILE,
+        json.dumps(metadata),
+        {"upsert": True}
+    )
 
 @app.route('/api/upload_image', methods=['POST'])
 def upload_image():
@@ -39,7 +56,16 @@ def upload_image():
                 return jsonify({'error': response.json().get('message', 'Unknown error')}), 500
             
             public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
-            return jsonify({'width': width, 'height': height, 'url': public_url, 'filename': filename}), 200
+            
+            metadata = get_metadata()
+            metadata[filename] = {
+                'width': width,
+                'height': height,
+                'url': public_url
+            }
+            save_metadata(metadata)
+            
+            return jsonify(metadata[filename]), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     return jsonify({'error': 'File processing error'}), 500
@@ -54,6 +80,12 @@ def remove_image():
     try:
         path = f"images/{filename}"
         supabase.storage.from_(BUCKET_NAME).remove([path])
+        
+        metadata = get_metadata()
+        if filename in metadata:
+            del metadata[filename]
+            save_metadata(metadata)
+        
         return jsonify({'success': True, 'message': 'Image removed successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -61,17 +93,8 @@ def remove_image():
 @app.route('/api/get_images', methods=['GET'])
 def get_images():
     try:
-        response = supabase.storage.from_(BUCKET_NAME).list()
-        
-        images = []
-        for item in response:
-            if item['name'].lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                url = supabase.storage.from_(BUCKET_NAME).get_public_url(item['name'])
-                images.append({
-                    'url': url,
-                    'filename': item['name'],
-                })
-        
+        metadata = get_metadata()
+        images = [{'filename': filename, **info} for filename, info in metadata.items()]
         return jsonify(images), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
