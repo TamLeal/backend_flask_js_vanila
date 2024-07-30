@@ -29,38 +29,50 @@ def health_check():
 
 @app.route('/api/upload_image', methods=['POST'])
 def upload_image():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['image']
-    if file:
-        try:
-            # Abre a imagem usando PIL
-            image = Image.open(file.stream)
-            width, height = image.size
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
 
-            # Converte a imagem para bytes
-            image_bytes = io.BytesIO()
-            image.save(image_bytes, format=image.format)
-            image_bytes = image_bytes.getvalue()
+        file = request.files['image']
+        if file:
+            try:
+                # Nome do arquivo e caminho no bucket
+                filename = file.filename
+                path = f"images/{filename}"
 
-            # Nome do arquivo e caminho no bucket
-            filename = file.filename
-            path = f"images/{filename}"
+                # Verificar se a imagem já existe no bucket
+                response = supabase.storage.from_(BUCKET_NAME).list(path)
+                if response.status_code == 200 and response.json():
+                    # Se a resposta é 200 e há conteúdo, significa que o arquivo existe
+                    public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
+                    return jsonify({'error': 'Image already exists', 'url': public_url}), 409
 
-            # Upload para o Supabase
-            response = supabase.storage.from_(BUCKET_NAME).upload(path, image_bytes)
-            if response.status_code != 200:
-                return jsonify({'error': response.json().get('message', 'Unknown error')}), 500
+                # Abre a imagem usando PIL
+                image = Image.open(file.stream)
+                width, height = image.size
 
-            # Obtém a URL pública
-            public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
+                # Converte a imagem para bytes
+                image_bytes = io.BytesIO()
+                image.save(image_bytes, format=image.format)
+                image_bytes = image_bytes.getvalue()
 
-            return jsonify({'width': width, 'height': height, 'url': public_url}), 200
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+                # Upload para o Supabase
+                response = supabase.storage.from_(BUCKET_NAME).upload(path, image_bytes)
+                if response.status_code != 200:
+                    return jsonify({'error': response.json().get('message', 'Unknown error')}), 500
 
-    return jsonify({'error': 'File processing error'}), 500
+                # Obtém a URL pública
+                public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
+
+                return jsonify({'width': width, 'height': height, 'url': public_url}), 200
+            except Exception as e:
+                print(f"Error processing image: {e}")
+                return jsonify({'error': str(e)}), 500
+
+    except Exception as e:
+        print(f"General error: {e}")
+        return jsonify({'error': 'File processing error'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
