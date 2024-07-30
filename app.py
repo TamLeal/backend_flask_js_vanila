@@ -4,7 +4,6 @@ from PIL import Image
 import io
 from supabase import create_client, Client
 import os
-import json
 
 app = Flask(__name__)
 CORS(app)
@@ -17,14 +16,6 @@ if not SUPABASE_URL or not SUPABASE_KEY or not BUCKET_NAME:
     raise ValueError("Variáveis de ambiente não configuradas corretamente.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-@app.route('/', methods=['GET'])
-def home():
-    return jsonify({'message': 'Server is running!'}), 200
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    return jsonify({'message': 'Backend is running!'}), 200
 
 @app.route('/api/upload_image', methods=['POST'])
 def upload_image():
@@ -43,24 +34,12 @@ def upload_image():
             filename = file.filename
             path = f"images/{filename}"
             
-            # Upload the image
             response = supabase.storage.from_(BUCKET_NAME).upload(path, image_bytes)
             if response.status_code != 200:
                 return jsonify({'error': response.json().get('message', 'Unknown error')}), 500
             
             public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
-            
-            # Store metadata
-            metadata = {
-                'filename': filename,
-                'width': width,
-                'height': height,
-                'url': public_url
-            }
-            metadata_path = f"metadata/{filename}.json"
-            supabase.storage.from_(BUCKET_NAME).upload(metadata_path, json.dumps(metadata))
-            
-            return jsonify(metadata), 200
+            return jsonify({'width': width, 'height': height, 'url': public_url, 'filename': filename}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     return jsonify({'error': 'File processing error'}), 500
@@ -73,29 +52,25 @@ def remove_image():
         return jsonify({'error': 'No filename provided'}), 400
     
     try:
-        # Remove the image
-        image_path = f"images/{filename}"
-        supabase.storage.from_(BUCKET_NAME).remove([image_path])
-        
-        # Remove the metadata
-        metadata_path = f"metadata/{filename}.json"
-        supabase.storage.from_(BUCKET_NAME).remove([metadata_path])
-        
-        return jsonify({'success': True, 'message': 'Image and metadata removed successfully'}), 200
+        path = f"images/{filename}"
+        supabase.storage.from_(BUCKET_NAME).remove([path])
+        return jsonify({'success': True, 'message': 'Image removed successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/get_images', methods=['GET'])
 def get_images():
     try:
-        response = supabase.storage.from_(BUCKET_NAME).list('metadata')
+        response = supabase.storage.from_(BUCKET_NAME).list()
         
         images = []
         for item in response:
-            if item['name'].endswith('.json'):
-                metadata_content = supabase.storage.from_(BUCKET_NAME).download(f"metadata/{item['name']}")
-                metadata = json.loads(metadata_content)
-                images.append(metadata)
+            if item['name'].lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                url = supabase.storage.from_(BUCKET_NAME).get_public_url(item['name'])
+                images.append({
+                    'url': url,
+                    'filename': item['name'],
+                })
         
         return jsonify(images), 200
     except Exception as e:
@@ -103,7 +78,6 @@ def get_images():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 
 # from flask import Flask, request, jsonify
 # from flask_cors import CORS
