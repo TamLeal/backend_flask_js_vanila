@@ -50,8 +50,8 @@ def upload_image():
 
             # Upload para o Supabase
             response = supabase.storage.from_(BUCKET_NAME).upload(path, image_bytes)
-            if 'error' in response:
-                return jsonify({'error': response['error']}), 500
+            if response.status_code != 200:
+                return jsonify({'error': response.json().get('message', 'Unknown error')}), 500
 
             # Obtém a URL pública
             public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
@@ -64,7 +64,6 @@ def upload_image():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 
 
 
