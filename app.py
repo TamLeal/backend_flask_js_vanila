@@ -3,33 +3,35 @@ from flask_cors import CORS
 from PIL import Image
 import io
 from supabase import create_client, Client
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-# # Configuração do Supabase
-# SUPABASE_URL = "SUA_SUPABASE_URL"  # Substitua pela sua URL do Supabase
-# SUPABASE_KEY = "SUA_SUPABASE_CHAVE_API"  # Substitua pela sua chave API do Supabase
-# BUCKET_NAME = "nome_do_seu_bucket"  # Substitua pelo nome do seu bucket no Supabase
+# Carregar variáveis de ambiente do ambiente de execução
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+
+# Verificar se as variáveis foram carregadas corretamente
+if not SUPABASE_URL or not SUPABASE_KEY or not BUCKET_NAME:
+    raise ValueError("Variáveis de ambiente não configuradas corretamente.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({'message': 'Server is running!'}), 200
 
-
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'message': 'Backend is running!'}), 200
-
 
 @app.route('/api/upload_image', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
-
+    
     file = request.files['image']
     if file:
         try:
@@ -59,7 +61,6 @@ def upload_image():
             return jsonify({'error': str(e)}), 500
 
     return jsonify({'error': 'File processing error'}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True)
