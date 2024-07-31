@@ -69,9 +69,17 @@ def get_images():
         images = []
         for item in response:
             url = supabase.storage.from_(BUCKET_NAME).get_public_url(f"images/{item['name']}")
+            
+            # Download the image and get its dimensions
+            image_data = supabase.storage.from_(BUCKET_NAME).download(f"images/{item['name']}")
+            image = Image.open(io.BytesIO(image_data))
+            width, height = image.size
+            
             images.append({
                 'filename': item['name'],
-                'url': url
+                'url': url,
+                'width': width,
+                'height': height
             })
         return jsonify(images), 200
     except Exception as e:
